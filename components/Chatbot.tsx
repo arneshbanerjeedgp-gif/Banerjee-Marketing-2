@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Sparkles, Loader2, Bot } from 'lucide-react';
+import { MessageCircle, X, Send, Sparkles, Loader2 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 
 interface Message {
@@ -47,6 +47,7 @@ export const Chatbot: React.FC = () => {
     const userText = inputValue.trim();
     const newMessage: Message = { id: Date.now().toString(), role: 'user', text: userText };
     
+    // Add user message to UI immediately
     setMessages(prev => [...prev, newMessage]);
     setInputValue('');
     setIsLoading(true);
@@ -55,10 +56,15 @@ export const Chatbot: React.FC = () => {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
       // Construct history for context
-      const history = messages.map(m => ({
-        role: m.role,
-        parts: [{ text: m.text }]
-      }));
+      // CRITICAL FIX: Exclude the initial "init" message from the API history.
+      // The API requires the conversation history to start with a user message (or proper alternation).
+      // The "init" message is a UI-only greeting and should not be sent as a Model turn at the start.
+      const history = messages
+        .filter(m => m.id !== 'init')
+        .map(m => ({
+          role: m.role,
+          parts: [{ text: m.text }]
+        }));
 
       // Generate response
       const response = await ai.models.generateContent({
